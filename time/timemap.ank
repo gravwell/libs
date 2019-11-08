@@ -1,0 +1,39 @@
+# Module to stash and retrieve timestamps by name
+# Example use:
+# tm = timemap
+# tm.Set("foo", time.Now())
+# tm.Get("foo") # returns the previously set time
+# tm.Get("bar") # returns the zero time
+
+
+module timemap {
+	time = import("time")
+	zero, _ = time.Parse("Jan 2 15:04:05 MST 2006", "Jan 1 00:00:00 UTC 0000") 
+	mapname = "timemap"
+
+	# Note that if you're going to call this, call it FIRST
+	# before you set anything
+	func SetMapName(n) {
+		mapname = n
+	}
+
+	func GetMapName() {
+		return mapname
+	}
+
+	func Set(k, v) {
+		setPersistentMap(mapname, k, toString(v.Unix()))
+	}
+
+	func Get(k) {
+		v = getPersistentMap(mapname, k)
+		if v == nil {
+			return zero
+		}
+		return time.Unix(toInt(v), 0)
+	}
+
+	func Del(k) {
+		delPersistentMap(mapname, k)
+	}
+}

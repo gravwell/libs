@@ -1,0 +1,33 @@
+# Module to stash and retrieve timestamps by name
+# Example use:
+# tm = timemap
+
+module link {
+	url = import ("net/url")
+	u, _ = url.Parse("http://")
+	q = u.Query()
+	func SetHost(v) {
+		u.Host = v
+	}
+
+	func SetScheme(v) {
+		u.Scheme = v
+	}
+
+	func SetPath(v) {
+		u.Path = v
+	}
+
+	func AddParam(name, value) {
+		q.Set(name, value)
+		u.RawQuery = q.Encode()
+	}
+
+	func Encode() {
+		return u.String()
+	}
+
+	func String() {
+		return u.String()
+	}
+}

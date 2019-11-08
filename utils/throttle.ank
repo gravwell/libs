@@ -1,0 +1,60 @@
+# Module to stash and retrieve timestamps by name
+# Example use:
+# tr = throttle
+# tr.SetInterval(24*time.Hour)
+# if !tr.ShouldThrottle(`foo`, nil) {
+#	DoStuff()
+	tm.Mark("foo", time.Now())
+}
+
+
+module throttle {
+	time = import("time")
+	mapname = "throttle"
+	interval = time.Hour
+	zero, _ = time.Parse("Jan 2 15:04:05 MST 2006", "Jan 1 00:00:00 UTC 0000") 
+
+	# Note that if you're going to call this, call it FIRST
+	# before you set anything
+	func SetMapName(n) {
+		mapname = n
+	}
+
+	func SetInterval(dur) {
+		interval = dur
+	}
+
+	func Mark(k, ts) {
+		if ts == nil {
+			ts = time.Now()
+		}
+		setPersistentMap(mapname, k, toString(ts.Unix()))
+	}
+
+	func ShouldThrottle(k, ts) {
+		if ts == nil {
+			ts = time.Now()
+		}
+		#if any of the internal values are bad, just return true, don't throttle
+		last = getPersistentMap(mapname, k)
+		if last == nil {
+			return false
+		} else if interval == nil {
+			return false
+		}
+		lastts = time.Unix(toInt(last), 0) #last time the event occurred
+		sb = interval
+		if sb < 0 {
+			sb = -1 * interval
+		}
+		return time.Now().Before(lastts.Add(sb))
+	}
+
+	func LastEvent(k) {
+		last = getPersistentMap(mapname, k)
+		if last == nil {
+			return zero
+		}
+		return time.Unix(toInt(last), 0)
+	}
+}
