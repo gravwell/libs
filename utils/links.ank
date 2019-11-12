@@ -21,7 +21,7 @@ module link {
 
 	func AddParam(name, value) {
 		q.Set(name, value)
-		u.Path = RawQuery = q.Encode()
+		u.RawQuery = q.Encode()
 	}
 
 	func Encode() {
