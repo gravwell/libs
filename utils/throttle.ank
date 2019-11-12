@@ -4,8 +4,8 @@
 # tr.SetInterval(24*time.Hour)
 # if !tr.ShouldThrottle(`foo`, nil) {
 #	DoStuff()
-	tm.Mark("foo", time.Now())
-}
+#	tm.Mark("foo", time.Now())
+#}
 
 
 module throttle {
