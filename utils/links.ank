@@ -4,6 +4,7 @@
 
 module link {
 	url = import ("net/url")
+	strings = import("strings")
 	u, _ = url.Parse("http://")
 	q = u.Query()
 	func SetHost(v) {
@@ -20,14 +21,14 @@ module link {
 
 	func AddParam(name, value) {
 		q.Set(name, value)
-		u.RawQuery = q.Encode()
+		u.Path = RawQuery = q.Encode()
 	}
 
 	func Encode() {
-		return u.String()
+		return strings.ReplaceAll(u.String(), "+", "%20")
 	}
 
 	func String() {
-		return u.String()
+		return strings.ReplaceAll(u.String(), "+", "%20")
 	}
 }
