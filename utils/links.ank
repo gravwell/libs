@@ -25,10 +25,10 @@ module link {
 	}
 
 	func Encode() {
-		return strings.ReplaceAll(u.String(), "+", "%20")
+		return strings.Replace(u.String(), "+", "%20", -1)
 	}
 
 	func String() {
-		return strings.ReplaceAll(u.String(), "+", "%20")
+		return strings.Replace(u.String(), "+", "%20", -1)
 	}
 }
