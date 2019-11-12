@@ -1,14 +1,21 @@
 # Module to stash and retrieve timestamps by name
 # Example use:
-# tm = timemap
+#ln = link
+#ln.Init("http://10.0.0.1/#/search")
+#ln.SetPath("/#/search")
+#ln.SetScheme("https")
+#ln.AddParam("query", "tag=foo grap ba")
+#import("fmt").Println(ln.Encode())
 
 module link {
 	url = import ("net/url")
 	strings = import("strings")
-	u, _ = url.Parse("http://")
-	q = u.Query()
-	func SetHost(v) {
-		u.Host = v
+	q = make(url.Values)
+	u = make(url.URL)
+
+	func Init(v) {
+		u, err = url.Parse(v)
+		return err
 	}
 
 	func SetScheme(v) {
@@ -19,16 +26,23 @@ module link {
 		u.Path = v
 	}
 
+	func SetHost(v) {
+		u.Host = v
+	}
+
 	func AddParam(name, value) {
 		q.Set(name, value)
-		u.RawQuery = q.Encode()
 	}
 
 	func Encode() {
-		return strings.Replace(u.String(), "+", "%20", -1)
+		r = u.String()
+		if len(q) > 0 {
+			r += "?"+q.Encode()
+		}
+		return strings.Replace(r, "+", "%20", -1)
 	}
 
 	func String() {
-		return strings.Replace(u.String(), "+", "%20", -1)
+		return Encode()
 	}
 }
