@@ -1,0 +1,44 @@
+# Module to re-ingest entries in JSON format
+# Each enumerated value becomes a field in the resulting JSON structure.
+# Call SetTag to specify the tag to use for ingestion
+# Call Ingest with the entry as the first argument and either a time.Time
+# or nil as the second argument. If nil is specified, each JSON-formatted
+# entry will use the timestamp of the original entry.
+# rj = reingest_json
+# rj.SetTag("alerts")
+# results, err = executeSearch(query, start, end)
+# for e in results {
+#     rj.Ingest(e, nil)
+# }
+
+module reingest_json {
+	var tag = ""
+	var time = import("time")
+	var uuid = import("google/uuid")
+	var json = import("encoding/json")
+
+	func SetTag(t) {
+		tag = t
+	}
+
+	func Ingest(ent, ts) {
+	    if tag == "" {
+	        return "no tag specified"
+	    }
+	    if ts == nil {
+	        ts = time.Now()
+	    }
+	    // build the data
+	    var m = make(map[string]interface)
+	    for ep in ent.Enumerated {
+	       m[ep.Name] = ep.Value.GetInterfaceValue()
+	    }
+	    m["AlertID"] = uuid.New()
+		var data = nil
+		var err = ""
+	    data, err = json.Marshal(m)
+	    var nent = newEntry(ts, data)
+	    ingestEntries([nent], tag)
+	    return nil
+	}
+}
