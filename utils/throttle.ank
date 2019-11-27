@@ -7,12 +7,14 @@
 #	tm.Mark("foo", time.Now())
 #}
 
+MinVer(3, 3, 0)
 
 module throttle {
-	time = import("time")
-	mapname = "throttle"
-	interval = time.Hour
-	zero, _ = time.Parse("Jan 2 15:04:05 MST 2006", "Jan 1 00:00:00 UTC 0000") 
+	var time = import("time")
+	var mapname = "throttle"
+	var interval = time.Hour
+	var zero = nil
+	zero, _ = time.Parse("Jan 2 15:04:05 MST 2006", "Jan 1 00:00:00 UTC 0000")
 
 	# Note that if you're going to call this, call it FIRST
 	# before you set anything
@@ -47,13 +49,13 @@ module throttle {
 		if sb < 0 {
 			sb = -1 * interval
 		}
-		return time.Now().Before(lastts.Add(sb))
+		return ts.Before(lastts.Add(sb))
 	}
 
 	func LastEvent(k) {
 		last = getPersistentMap(mapname, k)
 		if last == nil {
-			return zero
+			return _zero
 		}
 		return time.Unix(toInt(last), 0)
 	}

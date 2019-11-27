@@ -6,71 +6,88 @@
 # em.AddBodyData("hi")
 # em.AddEntsTable(ents, ["foo", "bar", "baz"])
 # em.AddQueryInfo(query, time.Now().Add(-1 * time.Hour), time.Now())
-# em.SendEmail("loggy.logbot@gmail.com", "traetox@gmail.com", "heeeyooo")
+# em.SendEmail("alerts@gmail.com", "admin@gmail.com", "heeeyooo")
+
+MinVer(3, 3, 0)
 
 module htmlEmail {
-        title = ""
-        body = ""
-        queryinfo = ""
-        var time = import("time")
+	var title = ""
+	var body = ""
+	var queryinfo = ""
+	var time = import("time")
 
-        func AddEntsTable(ents, cols) {
-                ret = `<table><tr>`
-                for col in cols {
-                        ret += `<td>` + toString(col) + `</td>`
-                }
-                ret += `</tr>`
-                for ent in ents {
-                        row = `<tr>`
-                        for col in cols {
-                                v, err = getEntryEnum(ent, col)
-                                if err != nil {
-                                        v = ``
-                                }
-                                row += `<td>` + toString(v) + `</td>`
-                        }
-                        row += `</tr>`
-                        ret += row
-                }
-                ret += `</table>`
-                body += ret
-        }
+	func AddEntsTable(ents, cols) {
+		var ret = `<table><tr>`
+		for col in cols {
+			ret += `<td>` + toString(col) + `</td>`
+		}
+		ret += `</tr>`
+		for ent in ents {
+			row = `<tr>`
+			for col in cols {
+				v, err = getEntryEnum(ent, col)
+				if err != nil {
+					v = ``
+				}
+				row += `<td>` + toString(v) + `</td>`
+			}
+			row += `</tr>`
+			ret += row
+		}
+		ret += `</table>`
+		body += ret
+	}
 
-        func AddBodyData(v) {
-                body += `<div>` + v + `</div>`
-        }
+	func AddEntTable(ent) {
+		#create the header row
+		var ret = `<table>`
+		var header = `<tr>`
+		var row = `<tr>`
+		for ev in ent.Enumerated {
+			header += `<td>` + ev.Name + `</td>`
+			row += `<td>` + ev.String() + `</td>`
+		}
+		header += `</tr>`
+		row += `</tr>`
+		body += `<table>` + header + row + `</table>`
+	}
 
-        func SetTitle(v) {
-                title = v
-        }
+	func AddBodyData(v) {
+		body += `<div>` + v + `</div>`
+	}
 
-        func AddSubTitle(v) {
-                body += `<h3>` + v + `</h3>`
-        }
+	func SetTitle(v) {
+		title = v
+	}
 
-        func AddQueryInfo(query, start, end) {
-                ret = `<div>Query In Use:<br><i>` + query + `</i></div><br>`
-                ret += `Query Timerange:<br>`
-                ret += `Start: ` + start.Format(time.RFC822) + `<br>`
-                ret += `End:   ` + end.Format(time.RFC822)  + `<br>`
-                ret += `Duration: ` + end.Sub(start).String() +  `<br>`
-                if queryinfo != ""  {
-                        queryinfo += "<br>" + ret
-                } else {
-                        queryinfo = ret
-                }
-        }
+	func AddSubTitle(v) {
+		body += `<h3>` + v + `</h3>`
+	}
+	
+	func AddQueryInfo(query, start, end) {
+		var ret = `<div>Query In Use:<br><i>` + query + `</i></div><br>`
+		ret += `Query Timerange:<br>`
+		ret += `Start: ` + start.Format(time.RFC822) + `<br>`
+		ret += `End:   ` + end.Format(time.RFC822)  + `<br>`
+		ret += `Duration: ` + end.Sub(start).String() +  `<br>`
+		if queryinfo != ""  {
+			queryinfo += "<br>" + ret
+		} else {
+			queryinfo = ret
+		}
+	}
 
-        func SendEmail(from, to, subj) {
-                data = `<html>`
-                if title != "" {
-                        data += `<h2>` + title + `</h2>`
-                }
-                data += body
-                if queryinfo != "" {
-                        data += `<br><br>` + queryinfo
-                }
-                data += `</html>`
-                return email(from, to, subj, data)
-        }
+	func SendEmail(from, to, subj) {
+		var data = `<html>`
+		if title != "" {
+			data += `<h2>` + title + `</h2>`
+		}
+		data += body
+		if queryinfo != "" {
+			data += `<br><br>` + queryinfo
+		}
+		data += `</html>`
+		return email(from, to, subj, data)
+	}
 }
+

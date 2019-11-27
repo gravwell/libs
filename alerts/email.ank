@@ -1,0 +1,259 @@
+# Basic email alert module
+# Example use:
+# alert = emailAlert
+# alert.EnableBatch()
+# alert.SetServerPath(serverPath)
+# alert.SetQueryParams(query, START.Add(-1*duration), START)
+# alert.SetEmailParams(from, to, sub)
+# alert.SetTitle(report_name)
+# alert.ThrottleOn("ip", time.Hour)
+# alert.ReingestAlerts("alerts", "testing", "SSH Login")
+# return alert.Run()
+#
+
+MinVer(3, 3, 1)
+
+require("utils/reingest-json.ank")
+require("utils/throttle.ank")
+require("utils/links.ank")
+require("email/htmlEmail.ank")
+
+module emailAlert {
+	var serverBase = "http://localhost"
+	var reingestTag = ""
+	var reingestName = ""
+	var reingestMsg = ""
+	var batch = false
+	var query  = ""
+	var end = time.Now()
+	var start = end.Add(-1*time.Hour)
+	var body = ""
+	var emailFrom = ""
+	var emailTo = []
+	var extraLinks = []
+	var subject = ""
+	var title = ""
+	var subTitles = []
+
+	var enableThrottle = false
+	var throttleEv = ""
+	var throttleDur = 0
+	var thr = throttle
+
+	func SetServerPath(p) {
+		serverBase = p
+	}
+
+	func SetAlertEmailThrottleParam(evName, dur) {			
+		enableThrottle = true					
+		throttleEv = evName
+		thr.SetMapName(evName)					
+		thr.SetInterval(dur)					
+	}									
+	
+	func SetQueryParams(q, s, e) {					
+		query = q
+		if e.Before(s) {
+			start = e
+			end = s
+		} else {
+			start = s
+			end = e 
+		}
+	}									
+	
+	func SetEmailParams(frm, to, subj) {					
+		from = frm						
+		to += to
+		subject = subj						
+	}									
+	
+	func EnableBatch() {						
+		batch = true						
+	}									
+	
+	func SetTitle(v) {
+		title=v							
+	}									
+	
+	func AddQueryLink(name, q, s, e, desc) {
+		ln = make(link)
+		ln.Init(serveBase + "/#/search/launch")
+		ln.AddParam("query", q)
+		ln.AddParam("start", s)
+		if e != nil {
+			ln.AddParam("end", e)
+		}
+		if desc == nil || len(desc) == "" {
+			desc = `LINK`
+		}
+		extraLinks += ln.HtmlEncode(desc)
+	}
+	
+	func ThrottleOn(evname, dur) {
+		throttleEv = evname
+		throttleDur = dur
+		thr.SetInterval(dur)
+	}
+	
+	func ReingestAlerts(tag, name, msg) {
+		reingestTag = tag
+		reingestName = name
+		reingestMsg = msg
+	}
+	
+	func reingestEnt(ent) {
+		if reingestTag == "" {
+			return nil
+		}
+		var re = reingest_json
+		if reingestName != "" {
+			re.SetHeaderValue("AlertName", reingestName)
+		}
+		if reingestMsg != "" {
+			re.SetHeaderValue("AlertMsg", reingestMsg)
+		}
+		re.SetTag(reingestTag)
+		return re.Ingest(ent, time.Now())
+	}
+	
+	func reingestEnts(ents) {
+		for ent in ents {
+			err = reingestEnt(ent)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	func getCols(ent) {
+		var cols = []
+		for ev in ent.Enumerated {
+			cols += ev.Name
+		}
+		return cols
+	}
+	
+	func markEnt(ent) {
+		if throttleEv == "" {
+			return nil
+		}
+		ev, err = getEntryEnum(ent, throttleEv)
+		if err != nil {
+			return err
+		}
+		
+		thr.Mark(toString(ev), time.Now())
+		return nil
+	}
+	
+	func markEnts(ents) {
+		for ent in ents {
+			markEnt(ent)
+		}
+	}
+	
+	func throttleEnt(ent) {
+		if throttleDur == 0 || throttleEv == "" {
+			return false
+		}
+		ev, err = getEntryEnum(ent, throttleEv)
+		if err != nil {
+			#do not throttle on error
+			return false
+		}
+		return thr.ShouldThrottle(toString(ev), nil)
+	}
+	
+	func throttleEnts(ents) {
+		if len(ents) == 0 {
+			return nil
+		}
+		rents = ents[0:0]
+		for ent in ents {
+			if !throttleEnt(ent) {
+				rents += ent
+			}
+		}
+		return rents
+	}
+	
+	func runBatch(ents, cols) {
+		ents = throttleEnts(ents)
+		if ents == nil || len(ents) == 0 {
+			return
+		}
+		em = htmlEmail
+		em.SetTitle(title)
+		em.AddEntsTable(ents, cols)
+		em.AddSubTitle("Query Links")
+		#add core link
+		lnk = link
+		lnk.Init(serverBase + "/#/search/launch")
+		lnk.AddParam("query", query)
+		lnk.AddParam("start", start.Format(time.RFC3339Nano))
+		lnk.AddParam("end", end.Format(time.RFC3339Nano))
+		em.AddBodyData(lnk.HtmlEncode("Alert Query"))
+		for el in extraLinks {
+			em.AddBodyData(el)
+		}
+		err = em.SendEmail(from, to, subject)
+		if err == nil && throttleDur > 0 {
+			markEnts(ents)
+		}
+		return err
+	}
+	
+	func runSingle(ent) {
+		if throttleEnt(ent) {
+			return nil
+		}
+		em = htmlEmail
+		em.SetTitle(title)
+		em.AddEntTable(ent)
+		em.AddSubTitle("Query Links")
+		#add core link
+		lnk = link
+		lnk.Init(serverBase + "/#/search/launch")
+		lnk.AddParam("query", query)
+		lnk.AddParam("start", start.Format(time.RFC3339Nano))
+		lnk.AddParam("end", end.Format(time.RFC3339Nano))
+		em.AddBodyData(lnk.HtmlEncode("Alert Query"))
+		for el in extraLinks {
+			em.AddBodyData(el)
+		}
+		err = em.SendEmail(from, to, subject)
+		if err == nil && throttleDur > 0 {
+			markEnt(ent)
+		}
+		return err
+	}
+
+	func Run() {
+		ents, err = executeSearch(query, start, end)
+		if err != nil {
+			return err
+		}
+		if len(ents) == 0 {
+			return nil
+		}
+		err = reingestEnts(ents)
+		if err != nil {
+			return err
+		}
+		
+		if batch == true {
+			return runBatch(ents, getCols(ents[0]))
+		}
+
+		//walk over each
+		for ent in ents {
+			err = runSingle(ent)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}

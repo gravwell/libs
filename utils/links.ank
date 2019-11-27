@@ -7,11 +7,13 @@
 #ln.AddParam("query", "tag=foo grap ba")
 #import("fmt").Println(ln.Encode())
 
+MinVer(3, 3, 1)
+
 module link {
-	url = import ("net/url")
-	strings = import("strings")
-	q = make(url.Values)
-	u = make(url.URL)
+	var url = import ("net/url")
+	var strings = import("strings")
+	var q = make(url.Values)
+	var u = make(url.URL)
 
 	func Init(v) {
 		u, err = url.Parse(v)
@@ -31,7 +33,7 @@ module link {
 	}
 
 	func AddParam(name, value) {
-		q.Set(name, value)
+		q.Set(toString(name), toString(value))
 	}
 
 	func Encode() {
@@ -44,5 +46,10 @@ module link {
 
 	func String() {
 		return Encode()
+	}
+
+	func HtmlEncode(text) {
+		v = Encode()
+		return `<a href="` + v + `">` + text + `</a>`
 	}
 }
