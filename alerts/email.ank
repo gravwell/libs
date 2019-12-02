@@ -39,6 +39,7 @@ module emailAlert {
 	var throttleEv = ""
 	var throttleDur = 0
 	var thr = throttle
+	var ingestLinks = make(map[string]interface)
 
 	func SetServerPath(p) {
 		serverBase = p
@@ -49,7 +50,15 @@ module emailAlert {
 		throttleEv = evName
 		thr.SetMapName(evName)					
 		thr.SetInterval(dur)					
-	}									
+	}
+
+	func queryInfo() {
+		var m = make(map[string]interface)
+		m["Query"] = query
+		m["Start"] = start
+		m["End"] = end
+		return m
+	}
 	
 	func SetQueryParams(q, s, e) {					
 		query = q
@@ -60,7 +69,7 @@ module emailAlert {
 			start = s
 			end = e 
 		}
-	}									
+	}
 	
 	func SetEmailParams(frm, to, subj) {					
 		from = frm						
@@ -108,13 +117,25 @@ module emailAlert {
 		}
 		var re = reingest_json
 		if reingestName != "" {
-			re.SetHeaderValue("AlertName", reingestName)
+			re.SetAlertName(reingestName)
 		}
 		if reingestMsg != "" {
 			re.SetHeaderValue("AlertMsg", reingestMsg)
 		}
+		var emailSent = throttleEnt(ent)
+		re.SetHeaderValue("EmailSent", emailSent)
+		re.SetHeaderValue("AlertInfo", queryInfo())
 		re.SetTag(reingestTag)
-		return re.Ingest(ent, time.Now())
+		var t = time.Now()
+		if emailSent {
+			ev, err = getEntryEnum(ent, throttleEv)
+			if err == nil {
+				var id = re.IngestID()
+				var lnk = re.AlertLink(serverBase, start, t, id)
+				ingestLinks[toString(ev)] = lnk
+			}
+		}
+		return re.Ingest(ent, t)
 	}
 	
 	func reingestEnts(ents) {
@@ -198,6 +219,12 @@ module emailAlert {
 		for el in extraLinks {
 			em.AddBodyData(el)
 		}
+		if len(ingestLinks) > 0 {
+			em.AddSubTitle("Query Links")
+			for k, v in ingestLinks {
+				em.AddBodyData(v)
+			}
+		}
 		err = em.SendEmail(from, to, subject)
 		if err == nil && throttleDur > 0 {
 			markEnts(ents)
@@ -222,6 +249,16 @@ module emailAlert {
 		em.AddBodyData(lnk.HtmlEncode("Alert Query"))
 		for el in extraLinks {
 			em.AddBodyData(el)
+		}
+		if len(ingestLinks) > 0 {
+			ev, err = getEntryEnum(ent, throttleEv)
+			if err == nil {
+				lnk = ingestLinks[toString(ev)]
+				if lnk != nil {
+					em.AddSubTitle("Query Links")
+					
+				}
+			}
 		}
 		err = em.SendEmail(from, to, subject)
 		if err == nil && throttleDur > 0 {

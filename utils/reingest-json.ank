@@ -13,10 +13,13 @@
 
 MinVer(3, 3, 1) #require at least 3.3.1
 
+require("utils/links.ank")
+
 module reingest_json {
 	var tag = ""
-	var name = ""
+	var name = nil
 	var msg  = ""
+	var id = nil
 	var m = make(map[string]interface)
 	var time = import("time")
 	var uuid = import("google/uuid")
@@ -29,6 +32,63 @@ module reingest_json {
 	func SetHeaderValue(k, v) {
 		m[toString(k)] = v
 	}
+
+	func IngestID() {
+		if id == nil {
+			id = uuid.New()
+		}
+		return id
+	}
+
+	func OverrideID(v) {
+		id = v
+	}
+
+	func SetAlertName(v) {
+		name = v
+		m["AlertName"] = v
+	}
+
+	func AlertLink(server, s, desc) {
+		q = ""
+		if tag != "" {
+			q += `tag=` + tag + ` `
+		}
+		q += `json AlertID==` + id
+		ln = make(link)
+		ln.Init(server + "/#/search/launch")
+		ln.AddParam("query", q)
+		ln.AddParam("start", s)
+		if e != nil {
+			ln.AddParam("end", e)
+		}
+		if desc == nil || len(desc) == "" {
+			desc = `LINK`
+		}
+		return ln.HtmlEncode(desc)
+	}
+
+	func CategoryLink(server, s, e, desc) {
+		q = ""
+		if tag != "" {
+			q += `tag=` + tag + ` `
+		}
+		if name != "" {
+			q += `json AlertName==` + name
+		}
+		ln = make(link)
+		ln.Init(server + "/#/search/launch")
+		ln.AddParam("query", q)
+		ln.AddParam("start", s)
+		if e != nil {
+			ln.AddParam("end", e)
+		}
+		if desc == nil || len(desc) == "" {
+			desc = `LINK`
+		}
+		return ln.HtmlEncode(desc)
+	}
+
 	
 	func Ingest(ent, ts) {
 		if tag == "" {
@@ -42,7 +102,10 @@ module reingest_json {
 		for ep in ent.Enumerated {
 			pkg[ep.Name] = ep.Value.GetInterfaceValue()
 		}
-		m["AlertID"] = uuid.New()
+		if id == nil {
+			id = uuid.New()
+		}
+		m["AlertID"] = id
 		m["data"] = pkg
 		var data = nil
 		var err = ""
