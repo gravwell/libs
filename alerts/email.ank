@@ -213,8 +213,8 @@ module emailAlert {
 		lnk = link
 		lnk.Init(serverBase + "/#/search/launch")
 		lnk.AddParam("query", query)
-		lnk.AddParam("start", start.Format(time.RFC3339Nano))
-		lnk.AddParam("end", end.Format(time.RFC3339Nano))
+		lnk.AddParam("start", start.UTC().Format(time.RFC3339))
+		lnk.AddParam("end", end.UTC().Format(time.RFC3339))
 		em.AddBodyData(lnk.HtmlEncode("Alert Query"))
 		for el in extraLinks {
 			em.AddBodyData(el)
