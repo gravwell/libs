@@ -1,0 +1,195 @@
+# A module to process EmergingThreats.net rules files into a CSV
+# Each ruile will generate up to N entris into a CSV with the IP and associated metadata
+# This can be used to generate iplookup resources for threatfeed pivots
+#
+# Example use:
+# ruleURLs = [`https://rules.emergingthreats.net/blockrules/emerging-botcc.rules`]
+# et = EmergingThreatlistToCSV
+# et.ForceCIDR(true)
+# csvbuff, err = et.GenerateCSVFromRuleURLs(ruleURLs)
+# if err != nil {
+# 	return err
+# }
+# return setResource(resourceName, csvbuff)
+
+MinVer(3, 3, 5)
+
+module EmergingThreatlistToCSV {
+	var regexp = import("regexp")
+	var bytes = import("bytes")
+	var strings = import("strings")
+	var io = import("io")
+	var csv = import("encoding/csv")
+	var memberNames = [`created`, `updated`, `srcport`, `dstport`, `proto`, `msg`, `references`]
+	var columns = [`CIDR`] + memberNames
+
+	var force_cidr = false
+
+	func ForceCIDR(v) {
+		force_cidr = toBool(v)
+	}
+
+	func extractReferences(data, mp) {
+		rx = regexp.MustCompile(`reference:url,(\S+);`)
+		ret = rx.FindAllSubmatch(data, -1)
+		v = ""
+		for m in ret {
+			if len(m) == 2 {
+				v += toString(m[1]) + " "
+			}
+		}
+		if len(v) > 0 {
+			mp["references"] = strings.Trim(v, " ")
+			return true
+		}
+		return false
+	}
+
+	func extractIPs(data) {
+		rx = regexp.MustCompile(`\[((\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d+)?)(,\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/\d+)?)*)\]`)
+		matches = rx.FindAllStringSubmatch(data, -1)
+		s = ""
+		for m in matches {
+			if len(m) > 0 && len(m[1]) > 0 {
+				s = s + `,` + toString(m[1])
+			}
+		}
+		return strings.Trim(s, `,`)
+	}
+
+	func namedRegexExtract(data, mp, rxstr) {
+		rx = regexp.MustCompile(rxstr)
+		rxnames = rx.SubexpNames()
+		matches = rx.FindSubmatch(data)
+		if len(matches) != len(rxnames) {
+			return false
+		}
+		for i = 0; i < len(rxnames); i++ {
+			nm = rxnames[i]
+			if nm == `` {
+				continue #skip unnamed groups
+			}
+			mp[nm] = toString(matches[i])
+		}
+		return true
+	}
+
+	func extractMembers(ln) {
+		v = {}
+		coreRxStr = `alert (?P<proto>\S+) \S+ (?P<srcport>\S+) -> \S+ (?P<dstport>\S+) \(msg:\"(?P<msg>[^\"]+)\";`
+		if namedRegexExtract(ln, v, coreRxStr) == false {
+			return nil, false
+		}
+		datesRxStr = `created_at (?P<created>\S+), updated_at (?P<updated>\S+);`
+		if namedRegexExtract(ln, v, datesRxStr) == false {
+			return nil, false
+		}
+		extractReferences(ln, v) #do not really care if these miss
+		
+		ips = extractIPs(ln)
+		if len(ips) > 0 {
+			v["ips"] = toString(ips)
+		}
+		
+		return v, true
+	}
+
+	func extractMembersFromRuleURL(uri) {
+		r = []
+		ret, err = httpGet(uri)
+		if err != nil {
+			return nil, err
+		}
+		println("Got", len(ret), "bytes")
+
+		bb = bytes.NewBuffer(ret)
+		for err == nil {
+			ln, err = bb.ReadBytes('\n')
+			if err != nil {
+				if err == io.EOF {
+					err = nil #ignore EOF errors
+				}
+				break
+			}
+			ln = bytes.Trim(ln, " \t\n") #trim whitespace
+			if bytes.HasPrefix(ln, "#") {
+				continue #skip comments
+			}
+
+			v, ok = extractMembers(ln)
+			if ok == true {
+				r += v
+			}
+		}
+		return r, err
+	}
+
+	func processSet(set, mp) {
+		//process all the ips into individual rows 
+		for v in set {
+			x = []
+			ipl = v[`ips`]
+			if ipl == nil || len(ipl) == 0 {
+				continue #skip values that don't have IPs
+			}
+			#extract out all the other names associated
+			for n in memberNames {
+				x += [v[n]]
+			}
+			#split the ips
+			ips = strings.Split(ipl, `,`)
+			#iterate and populate map with the ip as the key and a complete data list as the value
+			for ip in ips {
+				if force_cidr && strings.Contains(ip, `/`) == false {
+					ip += `/32`
+				}
+				mp[ip] = [ip] + x
+			}
+		}
+	}
+
+	func processRuleURLs(lists) {
+		iprules = {}
+		ipcnt = 0
+		for list in lists {
+			set, err = extractMembersFromRuleURL(list)
+			if err != nil {
+				println("Failed to extract members from rule URL", err)
+				return {}, err
+			}
+			println("Got", len(set), "rules from", list)
+			err = processSet(set, iprules)
+			if err != nil {
+				return {}, err
+			}
+		}
+		println("Total rules", len(iprules))
+		return iprules, nil
+	}
+
+	func GenerateCSVFromRuleURLs(urls) {
+		ipmap, err = processRuleURLs(urls)
+		if err != nil {
+			return nil, err
+		}
+
+		#iterate over the rule and build a csv resource
+		wtr = csv.NewBuilder(bb)
+		err = wtr.WriteHeaders(columns)
+		if err != nil {
+			return nil, err
+		}
+		
+		cnt = 0
+		for k, v in ipmap {
+			err = wtr.Write(v)
+			if err != nil {
+				return nil, err
+			}
+			cnt += 1
+		}
+		println("Generated", cnt, "lines")
+		return wtr.Flush()
+	}
+}
+
