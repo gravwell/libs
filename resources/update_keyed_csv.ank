@@ -35,7 +35,7 @@ module KeyedCSVResource {
 		if err != nil {
 			return nil, nil, err
 		}
-		rdr = csv.NewReader(bytes.NewBuffer(bts))
+		var rdr = csv.NewReader(bytes.NewBuffer(bts))
 		rdr.LazyQuotes = true
 
 		//load the headers

@@ -90,7 +90,7 @@ module OTXFeeder {
 	
 	func getPersistentTimestamp(name) {
 		//grab a persistent timestamp named
-		last = pts.Get(name)
+		var last = pts.Get(name)
 		if last == pts.zero {
 			return time.Now().Add(-1 * reachBack)
 		}
@@ -105,11 +105,11 @@ module OTXFeeder {
 	func requestRetry(req) {
 		for i = 0; i < retries; i++ {
 			tick() // kick the ticker so everyone knows we are still alive
-			cli = new(http.Client)
+			var cli = new(http.Client)
 			cli.Timeout = requestTimeout
-			ts = time.Now()
+			var ts = time.Now()
 			resp, err = cli.Do(req)
-			dur = time.Since(ts)
+			var dur = time.Since(ts)
 			if err == nil {
 				return resp, nil
 			}
@@ -137,7 +137,7 @@ module OTXFeeder {
 			return fmt.Errorf("Invalid response code on export request %d", resp.StatusCode)
 		}
 
-		bb = bytes.NewBuffer(nil)
+		var bb = bytes.NewBuffer(nil)
 		_, err = io.CopyN(bb, resp.Body, maxPayloadSize)
 		if err != nil && err != io.EOF {
 			return err
@@ -158,22 +158,22 @@ module OTXFeeder {
 			return nil, errors.New("Invalid indicator type type")
 		}
 		uri.Path = `/api/v1/indicators/export`
-		q = new(url.Values)
-		ts = getPersistentTimestamp(tp)
+		var q = new(url.Values)
+		var ts = getPersistentTimestamp(tp)
 		ts = ts.Truncate(time.Minute)
 		q.Add(`modified_since`, toString(ts.Format(time.RFC3339)))
 		q.Add(`types`, tp)
 		q.Add(`limit`, toString(perPageLimit))
 		uri.RawQuery = q.Encode()
-		reqUrl = uri.String()
-		ret = map[string][]string{}
+		var reqUrl = uri.String()
+		var ret = map[string][]string{}
 		for reqUrl != nil {
 			var obj = map[string]interface{}
 			err = doRequest(reqUrl, &obj)
 			if err != nil {
 				return nil, err
 			}
-			currTime = time.Now().Format(time.RFC3339)
+			var currTime = time.Now().Format(time.RFC3339)
 			for r in obj.results {
 				try {
 					if toString(r[`type`]) == tp {
