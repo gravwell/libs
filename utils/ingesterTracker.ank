@@ -227,4 +227,17 @@ module PersistentIngesterTracker {
 		}
 		return _ret
 	}
+
+	func Table(st) {
+		var ret = [][]string{}
+		ret += Members
+		for k, v in st {
+			var _row = []string{}
+			for col in Members {
+				_row += toString(v[col])
+			}
+			ret += _row
+		}
+		return ret
+	}
 }
