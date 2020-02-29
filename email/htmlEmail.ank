@@ -1,11 +1,11 @@
 # Module to send HTML formatted Emails
 # Example use:
 # em = htmlEmail
-# em.SetTitle("alert stuff"
+# em.SetTitle("alert stuff")
 # em.AddSubTitle("you should care about this")
 # em.AddBodyData("hi")
 # em.AddEntsTable(ents, ["foo", "bar", "baz"])
-# em.AddSimpleTable(rows)
+# em.AddTable(rows)
 # em.AddQueryInfo(query, time.Now().Add(-1 * time.Hour), time.Now())
 # em.SendEmail("alerts@gmail.com", "admin@gmail.com", "heeeyooo")
 

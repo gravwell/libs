@@ -229,14 +229,16 @@ module PersistentIngesterTracker {
 	}
 
 	func Table(st) {
-		var ret = [][]string{}
-		ret += Members
+		var ret = make([][]string, len(st)+1)
+		ret[0] = Members
+		var i = 1
 		for k, v in st {
 			var _row = []string{}
 			for col in Members {
 				_row += toString(v[col])
 			}
-			ret += _row
+			ret[i] = _row
+			i++
 		}
 		return ret
 	}
