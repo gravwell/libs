@@ -25,6 +25,7 @@ module KeyedCSVResource {
 	var header = []
 	var keycol = 0
 	var rowmp = map[string][]string{}
+	var _updated = false
 	
 	func loadResource(nm) {
 		if nm == `` || nm == nil {
@@ -56,6 +57,7 @@ module KeyedCSVResource {
 		if err != nil {
 			//failed to load existing, just use what we were given and return
 			header = hdrs
+			_updated = true // force the writeback
 		} else {
 			header = existingHeaders
 			if len(header) != len(hdrs) {
@@ -102,11 +104,14 @@ module KeyedCSVResource {
 			return fmt.Errorf("Row contains too few values for resource: %d < %d")
 		}
 		rowmp[row[keycol]] = row
+		_updated = true
 	}
 	
 	func Save(nm) {
 		if len(header) == 0 {
 			return fmt.Errorf("No headers set")
+		} else if !_updated {
+			return nil
 		}
 		bldr = csv.NewBuilder()
 		bldr.WriteHeaders(header)
