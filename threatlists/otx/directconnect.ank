@@ -1,0 +1,218 @@
+// AlienVault OTX DirectConnect API
+// See more info at https://otx.alienvault.com/api
+//
+/* USAGE:
+var time = import("time")
+var otxKey = `YOUR KEY`
+var otx = OTXFeeder
+otx.SetKey(otxKey) // REQUIRED
+otx.SetMaxRetries(5) //optional
+otx.SetMaxReachback(7*time.Hour*24) //optional
+otx.SetRequestTimeout(25*time.Second) //optional
+otx.SetPerPageLimit(1024) //optional
+
+// The folloin
+urli, err = otx.URLIndicators()
+if err != nil {
+	return err
+}
+
+// The following indicator functions are available
+URLIndicators()
+IPv4Indicators()
+IPv6Indicators()
+DomainIndicators()
+HostnameIndicators()
+FileIndicators()
+URLIndicators()
+*/
+
+MinVer(3, 3, 6)
+
+module OTXFeeder {
+	var http = import("net/http")
+	var url = import("net/url")
+	var time = import("time")
+	var fmt = import("fmt")
+	var json = import("encoding/json")
+	var io = import("io")
+	var bytes = import("bytes")
+	var errors = import("errors")
+	var maxPayloadSize = 1024*1024*8
+	var perPageLimit =  4096
+	var reachBack = time.Hour*24*365 //default is up to 1 year ago
+	var userAgent = `Gravwell SOAR Agent`
+	var key = ``
+	var retries = 3
+	var requestTimeout = 3*time.Second
+	var pts = timemap
+
+	//Spin up the base URL
+	var uri = new(url.URL)
+	uri.Scheme = `https`
+	uri.Host = `otx.alienvault.com`
+	
+	func SetKey(k) {
+		key = k
+	}
+	
+	func SetMaxRetries(v) {
+		if v > 0 {
+			retries = v
+			return nil
+		}
+		return errors.New("invalid retry value")
+	}
+	func SetRequestTimeout(v) {
+		if v > time.Millisecond && v < (30*time.Second) {
+			requestTimeout = v
+			return nil
+		} else {
+			return errors.New("invalid timeout, must be between 1ms and 30s")
+		}
+	}
+	func SetMaxReachback(v) {
+		if v <= 0 {
+			return fmt.Errorf("invalid reachback duration %v", v)
+		}
+		
+		reachBack = v
+		return nil
+	}
+	func SetPerPageLimit(v) {
+		if v <= 0 {
+			v = 4096 //do the default
+		} else {
+			perPageLimit = v
+		}
+	}
+	
+	func getPersistentTimestamp(name) {
+		//grab a persistent timestamp named
+		last = pts.Get(name)
+		if last == pts.zero {
+			return time.Now().Add(-1 * reachBack)
+		}
+		
+		return last
+	}
+	
+	func setPersistentTimestamp(name, val) {
+		return pts.Set(name, val)
+	}
+	
+	func requestRetry(req) {
+		for i = 0; i < retries; i++ {
+			tick() // kick the ticker so everyone knows we are still alive
+			cli = new(http.Client)
+			cli.Timeout = requestTimeout
+			ts = time.Now()
+			resp, err = cli.Do(req)
+			dur = time.Since(ts)
+			if err == nil {
+				return resp, nil
+			}
+			println("Failed on attempt", i, err, dur)
+			time.Sleep(time.Second)
+		}
+		return nil, fmt.Errorf("%d retries exceeded on %s", retries, req.URL.String())
+	}
+	
+	func doRequest(pth, obj) {
+		if key == `` {
+			return nil, errors.New("no API key set")
+		}
+		req, err = http.NewRequest(`GET`, pth, nil)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Add(`User-Agent`, userAgent)
+		req.Header.Add(`X-OTX-API-KEY`, key)
+		resp, err = requestRetry(req)
+		if err != nil {
+			return err
+		} else if resp.StatusCode != 200 {
+			return fmt.Errorf("Invalid response code on export request %d", resp.StatusCode)
+		}
+
+		bb = bytes.NewBuffer(nil)
+		_, err = io.CopyN(bb, resp.Body, maxPayloadSize)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(bb.Bytes(), obj)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	
+	func getIndicator(tp) {
+		if !(tp in [`IPv4`, `IPv6`, `domain`, `hostname`, `file`, `URL`]) {
+			return nil, errors.New("Invalid indicator type type")
+		}
+		uri.Path = `/api/v1/indicators/export`
+		q = new(url.Values)
+		ts = getPersistentTimestamp(tp)
+		ts = ts.Truncate(time.Minute)
+		q.Add(`modified_since`, toString(ts.Format(time.RFC3339)))
+		q.Add(`types`, tp)
+		q.Add(`limit`, toString(perPageLimit))
+		uri.RawQuery = q.Encode()
+		reqUrl = uri.String()
+		ret = map[string][]string{}
+		for reqUrl != nil {
+			var obj = map[string]interface{}
+			err = doRequest(reqUrl, &obj)
+			if err != nil {
+				return nil, err
+			}
+			currTime = time.Now().Format(time.RFC3339)
+			for r in obj.results {
+				try {
+					if toString(r[`type`]) == tp {
+						ret[toString(r.indicator)] = [toString(r.indicator), toString(toInt(r.id)), toString(r.title), toString(r.description), toString(r.content), toString(currTime)]
+					}
+				} catch e {
+					return nil, errors.New(toString(e))
+				}
+			}
+			reqUrl = obj.next
+		}
+		ts = time.Now().Truncate(time.Hour) //always truncate to the hour
+		err = setPersistentTimestamp(tp, ts)
+		if err != nil {
+			return nil, err
+		}
+		return ret, nil
+	}
+	
+	func IPv4Indicators() {
+		return getIndicator(`IPv4`)
+	}
+	
+	func IPv6Indicators() {
+		return getIndicator(`IPv6`)
+	}
+	
+	func DomainIndicators() {
+		return getIndicator(`domain`)
+	}
+	
+	func HostnameIndicators() {
+		return getIndicator(`hostname`)
+	}
+	
+	func FileIndicators() {
+		return getIndicator(`file`)
+	}
+	
+	func URLIndicators() {
+		return getIndicator(`URL`)
+	}
+}
