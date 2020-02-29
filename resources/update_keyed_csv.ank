@@ -47,6 +47,7 @@ module KeyedCSVResource {
 	}
 	
 	func Load(nm, hdrs, kc) {
+		rowmp = map[string][]string{} //make sure to reset the damn map
 		kc = toInt(kc)
 		if len(hdrs) == 0 {
 			return errors.New("Invalid headers")
