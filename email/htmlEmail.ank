@@ -5,6 +5,7 @@
 # em.AddSubTitle("you should care about this")
 # em.AddBodyData("hi")
 # em.AddEntsTable(ents, ["foo", "bar", "baz"])
+# em.AddSimpleTable(rows)
 # em.AddQueryInfo(query, time.Now().Add(-1 * time.Hour), time.Now())
 # em.SendEmail("alerts@gmail.com", "admin@gmail.com", "heeeyooo")
 
@@ -40,7 +41,6 @@ module htmlEmail {
 
 	func AddEntTable(ent) {
 		#create the header row
-		var ret = `<table>`
 		var header = `<tr>`
 		var row = `<tr>`
 		for ev in ent.Enumerated {
@@ -50,6 +50,20 @@ module htmlEmail {
 		header += `</tr>`
 		row += `</tr>`
 		body += `<table>` + header + row + `</table>`
+	}
+
+	func AddTable(rows) {
+		#create the header row
+		var ret = `<table>`
+		for row in rows {
+			ret += `<tr>`
+			for col in row {
+				ret += `<td>` + toString(col) + `</td>`
+			}
+			ret += `</tr>`
+		}
+		ret += `</table>`
+		body += ret
 	}
 
 	func AddBodyData(v) {
