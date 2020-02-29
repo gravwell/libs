@@ -28,6 +28,7 @@ URLIndicators()
 */
 
 MinVer(3, 3, 6)
+require("time/timemap.ank", `b75b05a2f84f16852308294284f62a0017526b35`)
 
 module OTXFeeder {
 	var http = import("net/http")

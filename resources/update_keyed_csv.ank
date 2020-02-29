@@ -1,0 +1,127 @@
+// System to update and merge new data into an existing CSV
+/* USAGE:
+var ksr = KeyedCSVResource
+err = ksr.Load(rsrcName, headers, 0)
+if err != nil {
+	return err
+}
+for k, v in mp {
+	ksr.Add(v)
+}
+
+err = ksr.Save(rsrcName)
+if err != nil {
+	return err
+}
+*/
+
+module KeyedCSVResource {
+	var errors = import("errors")
+	var csv = import("encoding/csv")
+	var bytes = import("bytes")
+	var fmt = import("fmt")
+	var io = import("io")
+	var name = ``
+	var header = []
+	var keycol = 0
+	var rowmp = map[string][]string{}
+	
+	func loadResource(nm) {
+		if nm == `` || nm == nil {
+			return nil, nil, errors.New("invalid resource name")
+		}
+		bts, err = getResource(nm)
+		if err != nil {
+			return nil, nil, err
+		}
+		rdr = csv.NewReader(bytes.NewBuffer(bts))
+		rdr.LazyQuotes = true
+
+		//load the headers
+		hdrs, err = rdr.Read()
+		if err != nil {
+			return nil, nil, err
+		}
+		return hdrs, rdr, nil
+	}
+	
+	func Load(nm, hdrs, kc) {
+		kc = toInt(kc)
+		if len(hdrs) == 0 {
+			return errors.New("Invalid headers")
+		} else if kc < 0 {
+			return errors.New("invalid key")
+		}
+		existingHeaders, rdr, err = loadResource(nm)
+		if err != nil {
+			//failed to load existing, just use what we were given and return
+			header = hdrs
+		} else {
+			header = existingHeaders
+			if len(header) != len(hdrs) {
+				return fmt.Errorf("Invalid header size for existing resource: %d != %d", len(header), len(hdrs))
+			}
+		}
+		if kc < 0 || kc >= len(hdrs) {
+			return fmt.Errorf("Invalid key column value %d %d", kc, len(header))
+		}
+		keycol = kc
+		if rdr == nil {
+			return nil // we are done, did not get an existing resource
+		}
+		
+		//read all rows, we have a resource and a reader wrapped around it
+		err = nil
+		for err == nil {
+			//read a row
+			row, err = rdr.Read()
+			if err != nil {
+				break
+			}
+			//check that we have a complete valid row
+			//this check also ensures that the keycol is usable
+			if len(row) < len(header) {
+				continue //skip it
+			}
+			rowmp[row[keycol]] = row
+		}
+		if err == io.EOF {
+			return nil
+		}
+		return err
+	}
+	
+	func Header() {
+		if name == `` || len(header) == 0 || keycol >= len(header) {
+			return errors.New("Resource not loaded")
+		}
+	}
+	
+	func Add(row) {
+		if len(row) < len(header) {
+			return fmt.Errorf("Row contains too few values for resource: %d < %d")
+		}
+		rowmp[row[keycol]] = row
+	}
+	
+	func Save(nm) {
+		if len(header) == 0 {
+			return fmt.Errorf("No headers set")
+		}
+		bldr = csv.NewBuilder()
+		bldr.WriteHeaders(header)
+		
+		for k, v in rowmp {
+			err = bldr.Write(v)
+			if err != nil {
+				return err
+			}
+		}
+		buff, err = bldr.Flush()
+		if err != nil {
+			return err
+		}
+		
+		return setResource(nm, buff)
+	}
+}
