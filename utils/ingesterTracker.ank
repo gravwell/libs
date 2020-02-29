@@ -1,0 +1,230 @@
+// Ingester tracking helpers, this lib eases the process of tracking ingester status
+// and providing stage changes.  This can be very useful for notifying when an ingester changes state
+/* Example Usage:
+var pit = PersistentIngesterTracker
+
+//load saved states
+err = pit.Load()
+if err != nil {
+	return err
+}
+
+// scan for current state
+err = pit.Scan()
+if err != nil {
+	return err
+}
+
+//get ingesters that changed states
+var changed = pit.ChangedStates()
+if len(changed) != 0 {
+	for k, v in changed {
+		println("\t", v)
+	}
+}
+
+//get ALL known ingesters, up and down
+var all = pit.AllStates()
+for k, v in all {
+	println(v)
+}
+
+//get ingesters that are in the state `ONLINE`
+var online = pit.FilterState(`ONLINE`)
+for k, v in all {
+	println(v)
+}
+
+return pit.Save() //save our current ingester state
+*/
+
+MinVer(3, 3, 6)
+
+func GetIngesterID(igst) {
+	var strings = import("strings")
+	var net = import("net")
+	var fmt = import("fmt")
+	var _zero = `00000000-0000-0000-0000-000000000000`
+	if igst.UUID != _zero && igst.UUID != `` {
+		return igst.UUID
+	}
+	addr = strings.TrimPrefix(igst.RemoteAddress, `tcp://`)
+	addr = strings.TrimPrefix(addr, `unix://`)
+	addr = strings.TrimPrefix(addr, `udp://`)
+	ip, port, err = net.SplitHostPort(addr)
+	if err == nil {
+		addr = ip
+	}
+	if igst.Name == `` {
+		return addr
+	}
+	return fmt.Sprintf(`[%s]%s`, igst.Name, addr)
+}
+
+module PersistentIngesterTracker {
+	var time = import("time")
+	var json = import("encoding/json")
+	var strings = import("strings")
+	var _mpname = `ingesters`
+	var _timeName = `times`
+	var _idName = `id`
+	var _times = map[string]time.Time{}
+	var _id = map[string]map[string]string{}
+	var Members = []string{`UUID`, `name`, `address`, `state`, `statechange`, `lastseen`}
+
+	func loadTimes() {
+		bts = getPersistentMap(_mpname, _timeName)
+		if bts == nil {
+			return nil //empty
+		}
+		return json.Unmarshal(bts, &_times)
+	}
+	
+	func saveTimes() {
+		if _times == nil {
+			return delPersistentMap(_mpname, _timeName)
+		}
+		bts, err = json.Marshal(_times)
+		if err != nil {
+			return err
+		}
+		bldr = new(strings.Builder)
+		_n, err = bldr.Write(bts)
+		if err != nil {
+			return err
+		}
+		return setPersistentMap(_mpname, _timeName, bldr.String())
+	}
+	
+	func loadIDs() {
+		bts = getPersistentMap(_mpname, _idName)
+		if bts == nil {
+			return nil //empty
+		}
+		return json.Unmarshal(bts, &_id)
+	}
+	
+	func saveIDs() {
+		if _id == nil {
+			return delPersistentMap(_mpname, _idName)
+		}
+		bts, err = json.Marshal(_id)
+		if err != nil {
+			return err
+		}
+		bldr = new(strings.Builder)
+		_n, err = bldr.Write(bts)
+		if err != nil {
+			return err
+		}
+		return setPersistentMap(_mpname, _idName, bldr.String())
+	}
+	
+	func Load() {
+		err = loadTimes()
+		if err != nil {
+			return err
+		}
+		return loadIDs()
+	}
+	
+	func Save() {
+		err = saveTimes()
+		if err != nil {
+			return err
+		}
+		return saveIDs()
+	}
+	
+	func Scan() {
+		igstMap, err = ingesters()
+		if err != nil {
+			return err
+		}
+		var _now = time.Now()
+		for idxName, igs in igstMap {
+			for ig in igs.Ingesters {
+				var igName = GetIngesterID(ig)
+				_times[igName] = _now
+				info, ok = _id[igName]
+				if !ok {
+					info = map[string]string{}
+					info[`UUID`] = ig.UUID
+					info[`name`] = ig.Name
+					info[`address`] = ig.RemoteAddress
+					info[`statechange`] = `NEW`
+				} else if info[`state`] != `ONLINE` {
+					info[`statechange`] = `ONLINE`
+				} else {
+					info[`statechange`] = `` //remove anyt state change that might have been there before
+				}
+				info[`state`] = `ONLINE`
+				_id[igName] = info
+			}
+		}
+		
+		//swing through the set and check for any that are missing
+		for k, v in _times {
+			if v != _now {
+				if _id[k][`state`] != `OFFLINE` {
+					_id[k][`statechange`] = `OFFLINE` //make the state change as going offline
+					_id[k][`state`] = `OFFLINE` //mark the state as offline
+				} else {
+					_id[k][`statechange`] = `` //still offline, just wipe the state change
+				}
+			}
+		}
+		return nil
+	}
+	
+	func FilterState(st) {
+		//copy the internal map so that there is no internal tinkering
+		var _ret = map[string]map[string]string{}
+		for k, v in _id {
+			if v[`state`] != st {
+				continue
+			}
+			//state matches, fill it up
+			var _data = map[string]string{}
+			for kk, vv in v {
+				_data[kk] = vv
+			}
+			_data[`lastseen`] = _times[k].Format(time.RFC3339)
+			_ret[k] = _data
+		}
+		return _ret
+	}
+	
+	func AllStates() {
+		//copy the internal map so that there is no internal tinkering
+		var _ret = map[string]map[string]string{}
+		for k, v in _id {
+			var _data = map[string]string{}
+			for kk, vv in v {
+				_data[kk] = vv
+			}
+			_data[`lastseen`] = _times[k].Format(time.RFC3339)
+			_ret[k] = _data
+		}
+		return _ret
+	}
+	
+	func ChangedStates() {
+		//copy the internal map so that there is no internal tinkering
+		var _ret = map[string]map[string]string{}
+		for k, v in _id {
+			_sc, ok = v[`statechange`]
+			if !ok || _sc == `` {
+				continue
+			}
+			//state changed, populate up the return map
+			var _data = map[string]string{}
+			for kk, vv in v {
+				_data[kk] = vv
+			}
+			_data[`lastseen`] = _times[k].Format(time.RFC3339)
+			_ret[k] = _data
+		}
+		return _ret
+	}
+}
