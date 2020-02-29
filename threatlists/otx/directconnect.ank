@@ -41,7 +41,7 @@ module OTXFeeder {
 	var errors = import("errors")
 	var maxPayloadSize = 1024*1024*8
 	var perPageLimit =  4096
-	var reachBack = time.Hour*24*365 //default is up to 1 year ago
+	var reachBack = time.Hour*24*14 //default is up to 1 year ago
 	var userAgent = `Gravwell SOAR Agent`
 	var key = ``
 	var retries = 3
