@@ -8,6 +8,7 @@
 # alert.SetTitle(report_name)
 # alert.ThrottleOn("ip", time.Hour)
 # alert.ReingestAlerts("alerts", "testing", "SSH Login")
+# alert.AddQueryLink(`extra info`, `tag=foo words bar`, START.Add(-1*duration), START)
 # return alert.Run()
 #
 time = import("time")
@@ -86,7 +87,7 @@ module emailAlert {
 		title=v							
 	}									
 	
-	func AddQueryLink(name, q, s, e, desc) {
+	func AddQueryLink(name, q, s, e) {
 		ln = make(link)
 		ln.Init(serveBase + "/#/search/launch")
 		ln.AddParam("query", q)
@@ -94,10 +95,10 @@ module emailAlert {
 		if e != nil {
 			ln.AddParam("end", e)
 		}
-		if desc == nil || len(desc) == "" {
-			desc = `LINK`
+		if name == nil || len(name) == "" {
+			name = `LINK`
 		}
-		extraLinks += ln.HtmlEncode(desc)
+		extraLinks += ln.HtmlEncode(name)
 	}
 	
 	func ThrottleOn(evname, dur) {
