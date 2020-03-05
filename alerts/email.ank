@@ -15,10 +15,10 @@ time = import("time")
 
 MinVer(3, 3, 1)
 
-require("utils/reingest-json.ank", `6efeac2b6ec9e75d6a2f1ebbef0c44de5e2927fb`)
-require("utils/throttle.ank", `6efeac2b6ec9e75d6a2f1ebbef0c44de5e2927fb`)
-require("utils/links.ank", `6efeac2b6ec9e75d6a2f1ebbef0c44de5e2927fb`)
-require("email/htmlEmail.ank", `6efeac2b6ec9e75d6a2f1ebbef0c44de5e2927fb`)
+require("utils/reingest-json.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
+require("utils/throttle.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
+require("utils/links.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
+require("email/htmlEmail.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
 
 module emailAlert {
 	var serverBase = "http://localhost"
