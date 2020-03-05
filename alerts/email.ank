@@ -88,7 +88,7 @@ module emailAlert {
 	}									
 	
 	func AddQueryLink(name, q, s, e) {
-		ln = make(link)
+		var ln = link
 		ln.Init(serveBase + "/#/search/launch")
 		ln.AddParam("query", q)
 		ln.AddParam("start", s)

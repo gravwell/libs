@@ -16,6 +16,7 @@ module link {
 	var u = make(url.URL)
 
 	func Init(v) {
+		q = make(url.Values)
 		u, err = url.Parse(v)
 		return err
 	}
