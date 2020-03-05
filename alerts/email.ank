@@ -11,16 +11,16 @@
 # alert.AddQueryLink(`extra info`, `tag=foo words bar`, START.Add(-1*duration), START)
 # return alert.Run()
 #
-time = import("time")
 
 MinVer(3, 3, 1)
 
-require("utils/reingest-json.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
-require("utils/throttle.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
-require("utils/links.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
-require("email/htmlEmail.ank", `3139b8c45b4894a807ea8698fd855bd294f7d00a`)
+require("utils/reingest-json.ank", `72405bd37f864125c267b82d113368d3dc305f45`)
+require("utils/throttle.ank", `72405bd37f864125c267b82d113368d3dc305f45`)
+require("utils/links.ank", `72405bd37f864125c267b82d113368d3dc305f45`)
+require("email/htmlEmail.ank", `72405bd37f864125c267b82d113368d3dc305f45`)
 
 module emailAlert {
+	var time = import("time")
 	var serverBase = "http://localhost"
 	var reingestTag = ""
 	var reingestName = ""
