@@ -13,7 +13,7 @@
 
 MinVer(3, 3, 1) #require at least 3.3.1
 
-require("utils/links.ank")
+require("utils/links.ank", `72405bd37f864125c267b82d113368d3dc305f45`)
 
 module reingest_json {
 	var tag = ""
@@ -49,13 +49,13 @@ module reingest_json {
 		m["AlertName"] = v
 	}
 
-	func AlertLink(server, s, desc) {
+	func AlertLink(server, s, e, desc) {
 		q = ""
 		if tag != "" {
 			q += `tag=` + tag + ` `
 		}
 		q += `json AlertID==` + id
-		ln = make(link)
+		var ln = link
 		ln.Init(server + "/#/search/launch")
 		ln.AddParam("query", q)
 		ln.AddParam("start", s)
@@ -76,7 +76,7 @@ module reingest_json {
 		if name != "" {
 			q += `json AlertName==` + name
 		}
-		ln = make(link)
+		var ln = link
 		ln.Init(server + "/#/search/launch")
 		ln.AddParam("query", q)
 		ln.AddParam("start", s)
