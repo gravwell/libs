@@ -134,7 +134,7 @@ module emailAlert {
 			ev, err = getEntryEnum(ent, throttleEv)
 			if err == nil {
 				var id = re.IngestID()
-				var lnk = re.AlertLink(serverBase, start, t, id)
+				var lnk = re.AlertLink(serverBase, start, t, "Alert ID " + toString(id))
 				ingestLinks[toString(ev)] = lnk
 			}
 		}
