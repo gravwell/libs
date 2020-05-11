@@ -122,16 +122,13 @@ module emailAlert {
 			return nil
 		}
 		var re = reingest_json
-		if reingestName != "" {
-			re.SetAlertName(reingestName)
-		}
+		re.Init(reingestTag, reingestName)
 		if reingestMsg != "" {
 			re.SetHeaderValue("AlertMsg", reingestMsg)
 		}
 		var emailSent = !throttleEnt(ent)
 		re.SetHeaderValue("EmailSent", emailSent)
 		re.SetHeaderValue("AlertInfo", queryInfo())
-		re.SetTag(reingestTag)
 		var t = time.Now()
 		if emailSent {
 			ev, err = getEntryEnum(ent, throttleEv)
