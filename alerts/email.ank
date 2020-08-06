@@ -11,6 +11,14 @@
 # alert.AddQueryLink(`extra info`, `tag=foo words bar`, START.Add(-1*duration), START)
 # return alert.Run()
 #
+# Optional recipient lookup keying; when sending, rather than using the "to" address
+# provided with SetEmailParams, will pull the "key" enumerated value from entries
+# and use it to figure out recipients. If no match is in the map, the default is used.
+# In batch mode, all recipients get a copy of the full email. In non-batch mode,
+# each recipient receives his associated entry only.
+# defaultEmail = "default@example.org"
+# emailMap = { "foo": "foo@example.org", "bar": "bar@example.org" }
+# alert.EnableRecipientLookup("key", defaultEmail, emailMap)
 
 MinVer(3, 3, 1)
 
@@ -36,6 +44,10 @@ module emailAlert {
 	var subject = ""
 	var title = ""
 	var subTitles = []
+	
+	var recipientLookupKey = ""
+	var recipientMap = {}
+	var defaultRecipient = ""
 
 	var enableThrottle = false
 	var throttleEv = ""
@@ -74,8 +86,8 @@ module emailAlert {
 	}
 
 	func SetEmailParams(frm, to, subj) {
-		from = frm
-		to += to
+		emailFrom = frm
+		emailTo += to
 		subject = subj
 	}
 
@@ -85,6 +97,13 @@ module emailAlert {
 
 	func SetTitle(v) {
 		title=v
+	}
+	
+	# syntax: EnableRecipientLookup(<ev key name>, <default recipient>, <map>)
+	func EnableRecipientLookup(key, def, m) {
+	    recipientLookupKey = key
+	    recipientMap = m
+	    defaultRecipient = def
 	}
 
 	func queryLink(name, q, s, e) {
@@ -223,7 +242,39 @@ module emailAlert {
 				em.AddBodyData(v)
 			}
 		}
-		err = em.SendEmail(from, to, subject)
+		var alertRecipients = emailTo
+		if len(recipientLookupKey) > 0 {
+		    alertRecipients = []
+		    for e in ents {
+			    # they specified a lookup table for recipients
+			    var v, err = getEntryEnum(e, recipientLookupKey)
+	            if err != nil {
+	                # This is not great, but we will move on
+					printf("Could not look up enumerated value %v: %v", recipientLookupKey, err)
+	                continue
+	            }
+			    r, ok = recipientMap[v]
+			    if !ok {
+			        // no recipient
+			        if len(defaultRecipient) > 0 {
+			            r = defaultRecipient
+			        } else {
+			            continue
+			        }
+			    }
+			    var found = false
+			    for existing in alertRecipients {
+			        if r == existing {
+			            found = true
+			            break
+			        }
+			    }
+			    if !found {
+			        alertRecipients += r
+			    }
+		    }
+		}
+		err = em.SendEmail(from, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
 			markEnts(ents)
 		}
@@ -234,6 +285,9 @@ module emailAlert {
 		if throttleEnt(ent) {
 			return nil
 		}
+		// This is a nasty hack we do because otherwise we end up with
+		// a singleton htmlEmail and the body keeps growing...
+		require("email/htmlEmail.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
 		em = htmlEmail
 		em.SetTitle(title)
 		em.AddEntTable(ent)
@@ -258,7 +312,29 @@ module emailAlert {
 				}
 			}
 		}
-		err = em.SendEmail(from, to, subject)
+		var alertRecipients = emailTo
+		if len(recipientLookupKey) > 0 {
+		    alertRecipients = []
+		    # they specified a lookup table for recipients
+		    var v, err = getEntryEnum(ent, recipientLookupKey)
+            if err != nil {
+                # This is... weird. Skip it.
+                printf("Could not look up enumerated value %v: %v", recipientLookupKey, err)
+                return nil
+            }
+		    r, ok = recipientMap[v]
+		    if !ok {
+		        // no recipient
+		        if len(defaultRecipient) > 0 {
+		            r = defaultRecipient
+		        } else {
+		            // If no default set, don't send an email at all
+		            return nil
+		        }
+		    }
+		    alertRecipients = [r]
+		}
+		err = em.SendEmail(from, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
 			markEnt(ent)
 		}
