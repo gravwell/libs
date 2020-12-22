@@ -288,7 +288,17 @@ module emailAlert {
 				# they specified an EV for recipients
 				var v, err = getEntryEnum(e, recipientKey)
 				if err == nil {
-					alertRecipients += toString(v)
+					v = toString(v)
+					var found = false
+					for existing in alertRecipients {
+						if v == existing {
+							found = true
+							break
+						}
+					}
+					if !found {
+						alertRecipients += v
+					}
 				}
 			}
 		}
@@ -354,10 +364,19 @@ module emailAlert {
 		if len(recipientKey) > 0 {
 			var v, err = getEntryEnum(ent, recipientKey)
 			if err == nil {
-				alertRecipients += toString(v)
+				v = toString(v)
+				var found = false
+				for existing in alertRecipients {
+					if v == existing {
+						found = true
+						break
+					}
+				}
+				if !found {
+					alertRecipients += v
+				}
 			}
 		}
-
 		
 		err = em.SendEmail(from, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
