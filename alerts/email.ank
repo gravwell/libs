@@ -252,7 +252,7 @@ module emailAlert {
 				em.AddBodyData(v)
 			}
 		}
-		var alertRecipients = emailTo
+		var alertRecipients = []
 		if len(recipientLookupKey) > 0 {
 			for e in ents {
 				# they specified a lookup table for recipients
@@ -302,6 +302,9 @@ module emailAlert {
 				}
 			}
 		}
+		if len(alertRecipients) == 0 {
+			alertRecipients = emailTo
+		}
 		err = em.SendEmail(from, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
 			markEnts(ents)
@@ -340,7 +343,7 @@ module emailAlert {
 				}
 			}
 		}
-		var alertRecipients = emailTo
+		var alertRecipients = []
 		if len(recipientLookupKey) > 0 {
 			# they specified a lookup table for recipients
 			var v, err = getEntryEnum(ent, recipientLookupKey)
@@ -358,8 +361,8 @@ module emailAlert {
 						return nil
 					}
 				}
+				alertRecipients += r
 			}
-			alertRecipients += r
 		}
 		if len(recipientKey) > 0 {
 			var v, err = getEntryEnum(ent, recipientKey)
@@ -377,7 +380,9 @@ module emailAlert {
 				}
 			}
 		}
-		
+		if len(alertRecipients) == 0 {
+			alertRecipients = emailTo
+		}
 		err = em.SendEmail(from, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
 			markEnt(ent)
