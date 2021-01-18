@@ -23,7 +23,6 @@
 # Optional recipient lookup using an enumerated value, this option will look at the
 # query results and use the value in an enumerated value to send the email
 # alert.EnableEnumeratedEmailAddress("EmailField")
-
 MinVer(3, 3, 1)
 
 require("utils/reingest-json.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
@@ -60,6 +59,7 @@ module emailAlert {
 	var throttleDur = 0
 	var thr = throttle
 	var ingestLinks = make(map[string]interface)
+	
 
 	func SetServerPath(p) {
 		serverBase = p
@@ -231,12 +231,24 @@ module emailAlert {
 		}
 		return rents
 	}
-
-	func runBatch(ents, cols) {
-		ents = throttleEnts(ents)
-		if ents == nil || len(ents) == 0 {
-			return
+	
+	func addRecipient(mp, tgt, ent) {
+		x = mp[toString(tgt)]
+		if x == nil {
+			mp[toString(tgt)] = {"s": tgt, "ents": [ent]}
+		} else {
+			x.ents += [ent]
+			mp[toString(tgt)] = x
 		}
+	}
+	
+	func sendBatch(batch, cols) {
+		tgt = batch.s
+		ents = batch.ents
+		
+		// This is a nasty hack we do because otherwise we end up with
+		// a singleton htmlEmail and the body keeps growing...
+		require("email/htmlEmail.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
 		em = htmlEmail
 		em.SetTitle(title)
 		em.AddEntsTable(ents, cols)
@@ -252,7 +264,20 @@ module emailAlert {
 				em.AddBodyData(v)
 			}
 		}
-		var alertRecipients = []
+		err = em.SendEmail(from, tgt, subject)
+		if err == nil && throttleDur > 0 {
+			markEnts(ents)
+		}
+		return err
+	}
+
+	func runBatch(ents, cols) {
+		ents = throttleEnts(ents)
+		if ents == nil || len(ents) == 0 {
+			return
+		}
+		
+		var alertRecipients ={}
 		if len(recipientLookupKey) > 0 {
 			for e in ents {
 				# they specified a lookup table for recipients
@@ -260,26 +285,14 @@ module emailAlert {
 				if err != nil {
 					# This is not great, but we will move on
 					printf("Could not look up enumerated value %v: %v", recipientLookupKey, err)
+					addRecipient(alertRecipients, defaultRecipient, e)
 					continue
 				}
 				r, ok = recipientMap[v]
 				if !ok {
-					// no recipient
-					if len(defaultRecipient) > 0 {
-						r = defaultRecipient
-					} else {
-						continue
-					}
-				}
-				var found = false
-				for existing in alertRecipients {
-					if r == existing {
-						found = true
-						break
-					}
-				}
-				if !found {
-					alertRecipients += r
+					addRecipient(alertRecipients, defaultRecipient, e)
+				} else {
+					addRecipient(alertRecipients, r, e)
 				}
 			}
 		}
@@ -287,29 +300,20 @@ module emailAlert {
 			for e in ents {
 				# they specified an EV for recipients
 				var v, err = getEntryEnum(e, recipientKey)
-				if err == nil {
-					v = toString(v)
-					var found = false
-					for existing in alertRecipients {
-						if v == existing {
-							found = true
-							break
-						}
-					}
-					if !found {
-						alertRecipients += v
-					}
+				if err != nil {
+					addRecipient(alertRecipients, defaultRecipient, e)
+				} else {
+					addRecipient(alertRecipients, toString(v), e)
 				}
 			}
 		}
-		if len(alertRecipients) == 0 {
-			alertRecipients = emailTo
+		for k, v in alertRecipients {
+			err = sendBatch(v, cols)
+			if err != nil {
+				printf("Failed to send email to %v %v\n", k, err)
+			}
 		}
-		err = em.SendEmail(from, alertRecipients, subject)
-		if err == nil && throttleDur > 0 {
-			markEnts(ents)
-		}
-		return err
+		return nil
 	}
 
 	func runSingle(ent) {
@@ -417,3 +421,4 @@ module emailAlert {
 		return nil
 	}
 }
+
