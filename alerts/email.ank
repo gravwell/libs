@@ -285,7 +285,7 @@ module emailAlert {
 				em.AddBodyData(v)
 			}
 		}
-		err = em.SendEmail(from, tgt, subject)
+		err = em.SendEmail(emailFrom, tgt, subject)
 		if err == nil && throttleDur > 0 {
 			markEnts(ents)
 		}
@@ -417,7 +417,7 @@ module emailAlert {
 				alertRecipients = emailTo
 			}
 		}
-		err = em.SendEmail(from, alertRecipients, subject)
+		err = em.SendEmail(emailFrom, alertRecipients, subject)
 		if err == nil && throttleDur > 0 {
 			markEnt(ent)
 		}
