@@ -1,6 +1,8 @@
 # Module to send HTML formatted Emails
 # Example use:
 # em = htmlEmail
+# em.SetCC("cc_recipient@example.com")
+# em.SetBCC(["bcc1@example.com", "bcc2@example.com"])
 # em.SetTitle("alert stuff")
 # em.AddSubTitle("you should care about this")
 # em.AddBodyData("hi")
@@ -16,6 +18,8 @@ module htmlEmail {
 	var body = ""
 	var queryinfo = ""
 	var time = import("time")
+	var cc = ""
+	var bcc = ""
 
 	func AddEntsTable(ents, cols) {
 		var ret = `<table><tr>`
@@ -91,6 +95,14 @@ module htmlEmail {
 		}
 	}
 
+	func SetCC(v) {
+		cc = v
+	}
+
+	func SetBCC(v) {
+		bcc = v
+	}
+
 	func SendEmail(from, to, subj) {
 		var data = `<html>`
 		if title != "" {
@@ -101,7 +113,7 @@ module htmlEmail {
 			data += `<br><br>` + queryinfo
 		}
 		data += `</html>`
-		return email(from, to, subj, data)
+		return emailWithCC(from, to, cc, bcc, subj, data)
 	}
 }
 
