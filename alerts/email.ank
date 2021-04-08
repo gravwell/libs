@@ -28,7 +28,7 @@ MinVer(3, 3, 1)
 require("utils/reingest-json.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
 require("utils/throttle.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
 require("utils/links.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
-require("email/htmlEmail.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
+require("email/htmlEmail.ank", `3f24f7ea0e0ba77bba6b2fcfaec88ff4ced8c9e1`)
 
 module emailAlert {
 	var time = import("time")
@@ -43,6 +43,8 @@ module emailAlert {
 	var body = ""
 	var emailFrom = ""
 	var emailTo = []
+	var emailCC = ""
+	var emailBCC = ""
 	var extraLinks = []
 	var extraBodyData = []
 	var subject = ""
@@ -99,6 +101,14 @@ module emailAlert {
 		emailFrom = frm
 		emailTo += to
 		subject = subj
+	}
+
+	func SetEmailCC(v) {
+		emailCC = v
+	}
+
+	func SetEmailBCC(v) {
+		emailBCC = v
 	}
 
 	func EnableBatch() {
@@ -271,6 +281,8 @@ module emailAlert {
 		em.SetTitle(title)
 		em.AddEntsTable(ents, cols)
 		em.AddSubTitle("Query Links")
+		em.SetCC(emailCC)
+		em.SetBCC(emailBCC)
 		#add core link
 		em.AddBodyData(queryLink(`Alert Query`, query, start, end))
 		for el in extraLinks {
@@ -354,6 +366,8 @@ module emailAlert {
 		em.SetTitle(title)
 		em.AddEntTable(ent)
 		em.AddSubTitle("Query Links")
+		em.SetCC(emailCC)
+		em.SetBCC(emailBCC)
 		#add core link
 		lnk = link
 		lnk.Init(serverBase + "/#/search/launch")
