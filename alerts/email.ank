@@ -6,6 +6,8 @@
 # alert.SetQueryParams(query, START.Add(-1*duration), START)
 # alert.SetEmailParams(from, to, sub)
 # alert.SetTitle(report_name)
+# alert.SetEmailCC("cc_recipient@example.com")
+# alert.SetEmailBCC(["bcc1@example.com", "bcc2@example.com"])
 # alert.ThrottleOn("ip", time.Hour)
 # alert.ReingestAlerts("alerts", "testing", "SSH Login")
 # alert.AddQueryLink(`extra info`, `tag=foo words bar`, START.Add(-1*duration), START)
