@@ -276,7 +276,7 @@ module emailAlert {
 		
 		// This is a nasty hack we do because otherwise we end up with
 		// a singleton htmlEmail and the body keeps growing...
-		require("email/htmlEmail.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
+		require("email/htmlEmail.ank", `3f24f7ea0e0ba77bba6b2fcfaec88ff4ced8c9e1`)
 		em = htmlEmail
 		em.SetTitle(title)
 		em.AddEntsTable(ents, cols)
@@ -361,7 +361,7 @@ module emailAlert {
 		}
 		// This is a nasty hack we do because otherwise we end up with
 		// a singleton htmlEmail and the body keeps growing...
-		require("email/htmlEmail.ank", `2e2a8ef089bf77a42b73f761b1f55a7b69f7a1be`)
+		require("email/htmlEmail.ank", `3f24f7ea0e0ba77bba6b2fcfaec88ff4ced8c9e1`)
 		em = htmlEmail
 		em.SetTitle(title)
 		em.AddEntTable(ent)
