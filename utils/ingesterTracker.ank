@@ -145,6 +145,10 @@ module PersistentIngesterTracker {
 		for idxName, igs in igstMap {
 			for ig in igs.Ingesters {
 				var igName = GetIngesterID(ig)
+				if _times[igName] == _now {
+					// we've already checked it (happens when there are multiple indexers)
+					continue
+				}
 				_times[igName] = _now
 				info, ok = _id[igName]
 				if !ok {
@@ -156,7 +160,7 @@ module PersistentIngesterTracker {
 				} else if info[`state`] != `ONLINE` {
 					info[`statechange`] = `ONLINE`
 				} else {
-					info[`statechange`] = `` //remove anyt state change that might have been there before
+					info[`statechange`] = `` //remove any state change that might have been there before
 				}
 				info[`state`] = `ONLINE`
 				_id[igName] = info
